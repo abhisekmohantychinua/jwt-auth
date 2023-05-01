@@ -8,8 +8,8 @@ import dev.abhisek.jwtauth.repository.UserRepository;
 import dev.abhisek.jwtauth.user.Role;
 import dev.abhisek.jwtauth.user.User;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.*;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +29,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
                 .build();
+        System.out.println(user);
         repo.save(user);
         var jwt = jwtService.generateToken(user);
         return AuthenticationResponse.builder()
@@ -37,14 +38,23 @@ public class AuthService {
     }
 
     public AuthenticationResponse authorize(AuthenticationRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
+        System.out.println(request);
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException | DisabledException | LockedException e) {
+            System.out.println(e.getMessage());
+            System.out.println("Cause : " + e.getCause());
+            e.printStackTrace();
+
+        }
         var user = repo.findByEmail(request.getEmail())
-                .orElseThrow();
+                .orElseThrow(() -> new UsernameNotFoundException("User not found!"));
+        System.out.println(user);
         var jwt = jwtService.generateToken(user);
         return AuthenticationResponse.builder()
                 .token(jwt)
